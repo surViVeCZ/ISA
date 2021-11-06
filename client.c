@@ -165,8 +165,6 @@ char* server_recv(int socket,char* Rqst,short lenRqst, char* host_address){
         k++;
     }
     token[k] = '\0';
-    //strncpy(token, server_msg, val);
-    //token[val] = '\0';
     char* mem = malloc(strlen(token)+1);
     if(mem == NULL){
         printf("Bad alloc\n");
