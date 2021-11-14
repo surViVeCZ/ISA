@@ -24,38 +24,30 @@
 {
     // Character set of base64 encoding scheme
     char char_set[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-     
-    // Resultant string
     char *encoded = (char *) malloc(SIZE * sizeof(char));
-    int index, bit_count = 0, padding = 0, val = 0, count = 0, tmp;
+    int index, bit_count = 0;
+    int padding = 0;
+    int val = 0;
+    int count = 0;
+    int tmp;
     int i, j, k = 0;
      
-    // Loop takes 3 characters at a time from
-    // input_str and stores it in val
     for (i = 0; i < len_str; i += 3){
-            val = 0, count = 0, bit_count = 0;
+            val = 0;
+            count = 0;
+            bit_count = 0;
             for (j = i; j < len_str && j <= i + 2; j++){
                 // binary data of input_str is stored in val
                 val = val << 8;
-                 
-                // (A + 0 = A) stores character in val
                 val = val | input_str[j];
-                 
-                // calculates how many time loop
-                // ran if "MEN" -> 3 otherwise "ON" -> 2
                 count++;
-             
             }
  
             bit_count = count * 8;
- 
-            // calculates how many "=" to append after encoded.
             padding = bit_count % 3;
  
             // extracts all bits from val (6 at a time)
-            // and find the value of each block
             while (bit_count != 0){
-                // retrieve the value of each block
                 if (bit_count >= 6){
                     tmp = bit_count - 6;
                     index = (val >> tmp) & 63;
@@ -70,16 +62,20 @@
                 encoded[k++] = char_set[index];
             }
     }
- 
-    // padding is done here
+    // padding
     for (i = 0; i < padding; i++){
         encoded[k++] = '=';
     }
  
     encoded[k] = '\0';
     return encoded;
- 
 }
+
+/**
+ * @see https://gist.github.com/jirihnidek/bf7a2363e480491da72301b228b35d5d
+ * @author Jiri Hnidek
+ * */
+//funkce vrací 4 pokud se jedná o ipv4, nebo 6 v případě ipv6
 int ipv4_or_ipv6(char* host_address){
     struct addrinfo hints, *res, *result;
     int errcode;
@@ -95,33 +91,27 @@ int ipv4_or_ipv6(char* host_address){
      errcode = getaddrinfo (host_address, NULL, &hints, &result);
     if (errcode != 0){
       fprintf(stderr,"Wrong address\n");
-      exit(1);
+      return 1;
     }
     res = result;
     while (res)
         {
         inet_ntop (res->ai_family, res->ai_addr->sa_data, addrstr, 100);
-
         switch (res->ai_family){
             case AF_INET:
-            ptr = &((struct sockaddr_in *) res->ai_addr)->sin_addr;
-            break;
+                ptr = &((struct sockaddr_in *) res->ai_addr)->sin_addr;
+                break;
             case AF_INET6:
-            ptr = &((struct sockaddr_in6 *) res->ai_addr)->sin6_addr;
-            break;
+                ptr = &((struct sockaddr_in6 *) res->ai_addr)->sin6_addr;
+                break;
         }
 
-      inet_ntop (res->ai_family, ptr, addrstr, 100);
-    //   printf ("IPv%d address: %s (%s)\n", res->ai_family == PF_INET6 ? 6 : 4,
-    //           addrstr, res->ai_canonname);
-              
-    //   res = res->ai_next;
+    inet_ntop (res->ai_family, ptr, addrstr, 100);
     if(res->ai_family == PF_INET6){
         proto = 6;
     }else{
         proto = 4;
     }
-
     return proto;
     }
     
@@ -139,14 +129,14 @@ char* server_recv(int socket,char* Rqst,short lenRqst, char* host_address){
 
     if(setsockopt(socket,SOL_SOCKET,SO_RCVTIMEO,(char *)&tv,sizeof(tv)) < 0)
     {
-        printf("Time Out\n");
+        fprintf(stderr,"Time Out\n");
         exit(1);
     }
 
 
     val = read( socket , server_msg, BUFFER);
     if(val < 0) {
-        printf("Time Out\n");
+        fprintf(stderr,"Time Out\n");
         exit(1);
     }
     //printf("server vrací: %s\n",server_msg);
@@ -166,7 +156,7 @@ char* server_recv(int socket,char* Rqst,short lenRqst, char* host_address){
     //token[val] = '\0';
     char* mem = malloc(strlen(token)+1);
     if(mem == NULL){
-        printf("Bad alloc\n");
+        fprintf(stderr,"Bad alloc\n");
         exit(1);
     }
     strcpy(mem,token);
@@ -233,21 +223,14 @@ int socket_connect(int socket,int port, char* addr, char* command, char* reg_tex
     }
     //TCP spojení
     if (connect(socket, (struct sockaddr *)&their_addr, sizeof(struct sockaddr)) < 0) {
-        printf("CONNECTION FAILED (timeout)\n");
+        fprintf(stderr,"tcp-connect: connection failed\n hostname: %s\n port number: %d\n system error: Connection refused; errno=111\n", addr, port);
         exit(1);
     }
-    // }else{
-    //     printf("CONNECTED\n");
-    // }
-
     return 0;
 }
 
 
 int main(int argc, char* argv[]){
-
-
-    //printf("Socket created:\n");
 
     int port_number = 0;
     int pass_len = 0;
@@ -278,7 +261,7 @@ int main(int argc, char* argv[]){
     FILE *fp;
 
     if (argc == 1){
-        printf("No arguments\n");
+        fprintf(stderr, "client: expects <command> [<args>] ... on the command line, given 0 arguments\n");
         return 0;
     }
 
@@ -307,7 +290,7 @@ int main(int argc, char* argv[]){
             if(argv[i+1] != NULL){ 
                 port_number = atoi(argv[i+1]); 
                 if(port_number <= 0){ 
-                    printf("Wrong port number\n");
+                    fprintf(stderr, "Port number is not a string\n");
                     return 1;
                 }
                 i++;
@@ -348,33 +331,33 @@ int main(int argc, char* argv[]){
     }
 
     //zpracování všech commandů
-    //TODO KONTROLA ARGC U VŠECH COMMANDŮ
     if(argc > i){   
         if(strcmp(argv[i],"register") == 0){  
             //ověřit zda existuje
             command_choice = "register";
-            if((argv[i+1] != NULL) && (argv[i+2] != NULL)){
+            //(argv[i+3] == NULL) - za heslem už nesmí být argumenty
+            if((argv[i+1] != NULL) && (argv[i+2] != NULL) && (argv[i+3] == NULL)){
                 username = argv[i+1];  
                 password = argv[i+2];
                 pass_len = strlen(password);
                 encoded_password = base64Encoder(password, pass_len);
             }else{
-                fprintf(stderr,"Wrong arguments\n");
+                fprintf(stderr,"register <username> <password>\n");
                 return 0;
             }
         }else if(strcmp(argv[i],"login") == 0){  
-            if((argv[i+1] != NULL) && (argv[i+2] != NULL)){
+            if((argv[i+1] != NULL) && (argv[i+2] != NULL) && (argv[i+3] == NULL)){
                 command_choice = "login";
                 username = argv[i+1];  
                 password = argv[i+2];
                 pass_len = strlen(password);
             }else{
-                fprintf(stderr,"Wrong arguments\n");
+                fprintf(stderr,"login <username> <password>\n");
                 return 0;
             }
         }else if(strcmp(argv[i],"send") == 0){  
             command_choice = "send";
-             if((argv[i+1] != NULL) && (argv[i+2] != NULL) && (argv[i+3] != NULL)){
+             if((argv[i+1] != NULL) && (argv[i+2] != NULL) && (argv[i+3] != NULL) && (argv[i+4] == NULL)){
                 username = argv[i+1];  
                 msg_subject = argv[i+2];
                 msg_body = argv[i+3];
@@ -390,7 +373,7 @@ int main(int argc, char* argv[]){
                     msg_subject = "n";
                 }
             }else{
-                fprintf(stderr,"Wrong arguments\n");
+                fprintf(stderr,"send <recipient> <subject> <body>\n");
                 return 0;
             }
         }else if(strcmp(argv[i],"list") == 0){  
@@ -402,11 +385,17 @@ int main(int argc, char* argv[]){
             username = " ";
             password = " ";
             if(argv[i+1] != NULL){
-                fetch_id = argv[i+1];
+                int id = atoi(argv[i+1]);
+                if(id != 0){
+                   fetch_id = argv[i+1]; 
+                }else{
+                    fprintf(stderr,"ERROR: id %s is not a number\n",argv[i+1]);
+                    return 1;
+                }
                 username = " ";
                 password = " ";
             }else{
-                fprintf(stderr,"Wrong arguments\n");
+                fprintf(stderr,"fetch <id>\n");
                 return 0;
             }
             
@@ -415,8 +404,7 @@ int main(int argc, char* argv[]){
             username = " ";
             password = " ";
         }else{ 
-            printf("%s\n", argv[i]);
-            fprintf(stderr,"Wrong arguments\n");
+            fprintf(stderr,"Unknown command\n");
             return 0;
         }
 
@@ -453,14 +441,25 @@ int main(int argc, char* argv[]){
 
             //tisknutí odpovědi serveru
             server_answer = server_recv(socket_data, request, reg_len, host_address);
-            printf("%s\n", server_answer);
-
+            //snaha o přihlášení neregistrovaného uživatele, nebo registrace podruhé
+            if(strcmp(server_answer,"(err \"unknown user\")") == 0){ 
+                fprintf(stderr,"ERROR: unknown user\n");
+                return  1;
+            }else if(strcmp(server_answer,"(err \"user already registered\")") == 0){
+                fprintf(stderr,"ERROR: user already registered\n");
+                return  1;
+            }
+      
+            if(command_choice == "register"){
+                printf("SUCCESS: registered user %s\n", username);
+            }else{
+                printf("SUCCESS: user logged in\n");
+            }
             //extrakce login-tokenu
             int index_start = 22;
             int k = 0;
             char token[1024] = {0};
             while(server_answer[index_start] !='\"'){
-
                 token[k] = server_answer[index_start];
                 index_start++;
                 k++;
@@ -474,6 +473,7 @@ int main(int argc, char* argv[]){
             int msg_req_len = 0;
             int protocol;
         
+            //vytvoření requestu, který pošleme na server
             strcpy(msg_req, "(");
             strcat(msg_req, command_choice);
             strcat(msg_req, " \"");
@@ -487,14 +487,26 @@ int main(int argc, char* argv[]){
             strcat(msg_req, "\")");
             msg_req_len = strlen(msg_req);
 
+            //zistím o jaký protokol se jedná
             protocol = ipv4_or_ipv6(host_address);
             socket_connect(socket_data, port_number,host_address, command_choice, msg_req, msg_req_len, protocol);
             Socket_send(socket_data, msg_req, msg_req_len);
 
             //odpověď serveru
             server_answer = server_recv(socket_data, request, msg_req_len, host_address);
-            printf("%s\n", server_answer);
+            if(strcmp(server_answer,"(err \"unknown recipient\")") == 0){ 
+                fprintf(stderr,"ERROR: unknown recipient\n");
+                return  1;
+            }
+
+            printf("SUCCESS: message sent\n");
         }else if(command_choice == "list"){
+
+            //list nemá argumenty
+            if(argv[i+1] != NULL){
+                fprintf(stderr, "list\n");
+                return 1;
+            }
             token = get_token(fp);
             int list_len = 0;
 
@@ -515,8 +527,8 @@ int main(int argc, char* argv[]){
 
             //odpověď serveru
             server_answer = server_recv(socket_data, request, list_len, host_address);
-            //printf("%s\n", server_answer);            
-
+                 
+            //naparsování odpovědi
             char* info = strtok(server_answer, delim);
 
             int i = 0;
@@ -542,6 +554,7 @@ int main(int argc, char* argv[]){
             token = get_token(fp);
             int list_len = 0;
 
+            //vytvoření requestu, který pošleme na server
             strcpy(msg_req, "(");
             strcat(msg_req, command_choice);
             strcat(msg_req, " \"");
@@ -552,9 +565,8 @@ int main(int argc, char* argv[]){
             list_len = strlen(msg_req);
             Socket_send(socket_data, msg_req, list_len);
 
-    
+            //odpověď serveru
             server_answer = server_recv(socket_data, request, list_len,host_address);
-            //printf("%s\n", server_answer);
             char* delim = "\"";
 
             char* from;
@@ -562,6 +574,7 @@ int main(int argc, char* argv[]){
             char* message;
             char *informations[255] = {0};
 
+            //parsování odpovědi serveru
             char* info = strtok(server_answer, delim);
 
             int i = 0;
@@ -571,16 +584,30 @@ int main(int argc, char* argv[]){
                 i++;
             }
             
+            //jednotlivé části výstupu fetch
             from = informations[1];
             object = informations[3];
             message = informations[5];
+
+            //pokud si uživatel vybere id, které neexistuje, vypíšeme chybu
+            if((object == NULL)  || (message == NULL)){
+                fprintf(stderr, "%s\n", from);
+                return 1;
+            };
             printf("SUCCESS:\n\nFrom: %s\nSubject: %s\n\n%s", from, object, message);
 
 
-        }else if(command_choice == "logout"){           
+        }else if(command_choice == "logout"){   
+            //logout nemá argumenty
+            if(argv[i+1] != NULL){
+                fprintf(stderr, "logout\n");
+                return 1;
+            }
+
             token = get_token(fp);
             int list_len = 0;
 
+            //vytvoření requestu, který pošleme na server
             strcpy(msg_req, "(");
             strcat(msg_req, command_choice);
             strcat(msg_req, " \"");
@@ -589,8 +616,9 @@ int main(int argc, char* argv[]){
             list_len = strlen(msg_req);
             Socket_send(socket_data, msg_req, list_len);
 
+            //přijatá odpověď
             server_answer = server_recv(socket_data, request, list_len, host_address);
-            printf("%s\n", server_answer);
+            printf("SUCCESS: logged out\n");
         }
     return 0;
 }
