@@ -1,8 +1,9 @@
 
--- declare our protocol
-
+--vytvoření protokolu
 isa_protocol = Proto("ISA","ISA Protocol")
 local createSllTvb, dissectFPM, checkFpmLength
+
+--jednotlivá pole, která se objevují ve stromové struktuře
 local isa_fields =
 {
     RAW_msg = ProtoField.string("ISA.raw", "Raw Message", base.utf8),
@@ -20,22 +21,9 @@ local isa_fields =
     dst_F = ProtoField.string("ISA.dst","Destination"),
 }
 isa_protocol.fields = isa_fields
-print("Fields registered\n")
 
 
-local string_meta = getmetatable('')
-function string_meta:__index( key )
-    local val = string[ key ]
-    if ( val ) then
-        return val
-    elseif ( tonumber( key ) ) then
-        return self:sub( key, key )
-    else
-        error( "attempt to index a string value with bad key ('" .. tostring( key ) .. "' is not part of the string library)", 2 )
-    end
-end
-
-
+--funkce na formátování textu
  function Split(s, delimiter)
     result = {};
     for match in (s..delimiter):gmatch("(.-)"..delimiter) do
@@ -44,10 +32,9 @@ end
     return result;
 end
 
-
-
- -- create a function to dissect it
+--dissector protokolu
  function isa_protocol.dissector(buffer,pinfo,tree)
+    --délka odpovědi
     length = buffer:len()
 
     --Buffer nemusí obsahovat celou zprávu, protože tcp to segmentuje
@@ -60,29 +47,27 @@ end
     if length == 0 then return end
 
     local tcp_src = tcp_src_f()
-     local tcp_dst = tcp_dst_f()
-     local ip_src = ip_src_f()
-     local ip_dst = ip_dst_f()
+    local tcp_dst = tcp_dst_f()
+    local ip_src = ip_src_f()
+    local ip_dst = ip_dst_f()
 
+    --pojmenování protokolu
     pinfo.cols.protocol:set("ISA Protocol")
     if string.find(tostring(pinfo.cols.info), "^ISA Protocol") == nil then
         pinfo.cols.info:set("ISA Protocol")
     end
 
- -- We start by adding our protocol to the dissection display tree.
+    --přidání protokolu do stromové struktury
     local tree_data = tree:add(isa_protocol, buffer:range(offset, length))
 
     --RAW message
    local raw_message = buffer:range(0, length)
    tree_data:add(isa_fields.RAW_msg, raw_message)
 
-    --local opcode = buffer(4,4):le_int()
-    -- local version = string.match(buffer, "ok")
-    -- tree:add(isa_fields.err_code, version)
+  
     string_raw = raw_message:string()
-    
+    --parsování
     parsed_args = Split(string_raw, " ")
-    --print(#parsed_args)
 
     --client x server
     if((parsed_args[1] == "(ok") or (parsed_args[1] == "(err")) then
@@ -95,14 +80,13 @@ end
     tree_data:add(isa_fields.sender, sender_msg)
 
     
-
-    --COMMAND
+    --Získání typu příkazu (register,login,send...)
     command = (parsed_args[1]):sub(2)
     if(sender_msg == "Client") then
         tree_data:add(isa_fields.client_command, command)
     end
 
-    --SOURCE and DESTINATION
+    --source x destination
     if tcp_src then
         local src = tostring(ip_src) .. ":" .. tostring(tcp_src)
         local dst = tostring(ip_dst) .. ":" .. tostring(tcp_dst)
@@ -112,7 +96,7 @@ end
      end
 
     
-    -- PROTOCOL
+    -- nastavení textu, ve sloupci protocol info
     if(sender_msg == "Client") then
         pinfo.cols.info:set("Request: ")
     else
@@ -120,8 +104,7 @@ end
     end
     pinfo.cols.info:append(string_raw)
 
-
-
+    --přidání raw message do sloupce protocol info
     if string.find(tostring(pinfo.cols.info), string_raw) == nil then
         if(sender_msg == "Client") then
             pinfo.cols.info:set("Request: ", string_raw)
@@ -146,20 +129,11 @@ end
         body = string.gsub(parsed_args[5], '"', " ")
     end
 
-    
-    -- if(command == "list") then
-    --     --smazání uvozovek
-    --     print(parsed_args)
-    --     --print(#parsed_args)
-        
-    -- end
-    
-        --dissector for list command
+    --dissector for příkaz list 
+    if(sender_msg == "Server") then
         i = 3
         no_data = (parsed_args[1] .. parsed_args[2] .. parsed_args[3])
-        print(parsed_args[1])
-        
-        --packet data only for send,list and fetch
+        --strom ISA DAT pouze pro send,list a fetch
         if((no_data ~= "(ok\"registereduser") and (no_data ~= "(ok\"userlogged") and (parsed_args[1] ~= "(err")) then
             local subtree = tree:add(isa_protocol,buffer(),"ISA data:")
             while(parsed_args[i] ~= nil) do
@@ -175,20 +149,15 @@ end
                 i = i+3
             end 
         end
-
-   
-
+    end
  end
 
  
-
  tcp_table = DissectorTable.get("tcp.port")
- -- register our protocol to handle tcp port 32323
+ --protokol je registrován na portu 32323
  tcp_table:add(32323,isa_protocol)
 
- --------------------------------------------------------------------
- -- trivial postdissector example
- -- declare some Fields to be read
+--postdissector
  ip_src_f = Field.new("ip.src")
  ip_dst_f = Field.new("ip.dst")
  tcp_src_f = Field.new("tcp.srcport")
