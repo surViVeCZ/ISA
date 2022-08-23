@@ -1,6 +1,6 @@
 # ISA - školní projekt do předmětu Síťové aplikace a správa sítí
 
-##Zadání:
+## Zadání:
 1. Zachytenie protokolovej komunikácie
    
 K zadaniu projektu bude dodaný virtuálny stroj s referenčným klientom a serverom. Vhodným použitím klienta vygenerujte komunikáciu medzi klientom a serverom ktorú zachytíte pomocou nástroja Wireshark do PCAPu. Táto komunikácia bude slúžiť ako základ pre Vašu implementáciu. Formát protokolu popíšte do dokumentácie.
