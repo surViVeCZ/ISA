@@ -1,4 +1,5 @@
-# ISA - školní projekt do předmětu Síťové aplikace a správa sítí
+# ISA - školní projekt VUT FIT
+##předmět Síťové aplikace a správa sítí
 
 ## Zadání:
 <ol>
